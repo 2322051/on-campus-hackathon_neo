@@ -1,46 +1,84 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, SafeAreaView, FlatList, Dimensions, TouchableOpacity, LayoutChangeEvent } from 'react-native';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  FlatList,
+  Dimensions,
+  TouchableOpacity,
+  LayoutChangeEvent,
+  ViewabilityConfig,
+  ViewToken,
+} from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Feather } from '@expo/vector-icons';
-import { getFeed } from '../api';
+import { getFeed, addBookmark, deleteBookmark } from '../api';
 import { FeedItem } from '../types';
 
-// 初期値として使うだけなので、コンポーネント外に定義
 const initialHeight = Dimensions.get('window').height;
 
 // 1. 論文テキストを表示する部分
-// ★★★ 変更点1: propsでコンテナの高さを正確に受け取る ★★★
-const PaperItem = ({ item, index, containerHeight }: { item: FeedItem; index: number; containerHeight: number }) => {
-  const backgroundColor = index % 2 === 0 ? '#000080' : '#800000';
+const PaperItem = ({
+  item,
+  index,
+  containerHeight,
+}: {
+  item: FeedItem;
+  index: number;
+  containerHeight: number;
+}) => {
+  const backgroundColor = index % 2 === 0 ? '#0d001a' : '#1a000d';
 
   return (
-    // ★★★ 変更点2: 測定したコンテナの高さをスタイルに適用 ★★★
-    <View style={[styles.paperContainer, { height: containerHeight, backgroundColor }]}>
-      <Text style={styles.title} numberOfLines={3}>{item.title}</Text>
-      <Text style={styles.authors} numberOfLines={2}>{item.authors.join(', ')}</Text>
-      <Text style={styles.summary} numberOfLines={10}>{item.summary}</Text>
+    <View
+      style={[
+        styles.paperContainer,
+        { height: containerHeight, backgroundColor },
+      ]}
+    >
+      <Text style={styles.title} numberOfLines={3}>
+        {item.title}
+      </Text>
+      <Text style={styles.authors} numberOfLines={2}>
+        {item.authors.join(', ')}
+      </Text>
+      <Text style={styles.summary} numberOfLines={10}>
+        {item.summary}
+      </Text>
     </View>
   );
 };
 
 // 2. アイコンなど、手前に表示するUI
-const OverlayUI = () => {
+const OverlayUI = ({
+  currentItem,
+  onBookmarkPress,
+}: {
+  currentItem: FeedItem | null;
+  onBookmarkPress: () => void;
+}) => {
+  const bookmarkIconColor = currentItem?.is_bookmarked ? '#34D399' : 'white';
+
   return (
-    <SafeAreaView style={styles.overlayContainer} pointerEvents="box-none">
-        <View style={styles.rightIconsWrapper} pointerEvents="auto">
-            <TouchableOpacity style={styles.iconButton}>
-                <Feather name="bookmark" size={32} color="white" />
-                <Text style={styles.iconText}>Save</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.iconButton}>
-                <Feather name="external-link" size={32} color="white" />
-                <Text style={styles.iconText}>Link</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.iconButton}>
-                <Feather name="share-2" size={32} color="white" />
-                <Text style={styles.iconText}>Share</Text>
-            </TouchableOpacity>
-        </View>
-    </SafeAreaView>
+    <View style={styles.overlayContainer} pointerEvents="box-none">
+      <View style={styles.rightIconsWrapper} pointerEvents="auto">
+        <TouchableOpacity style={styles.iconButton} onPress={onBookmarkPress}>
+          <Feather name="bookmark" size={32} color={bookmarkIconColor} />
+          <Text style={[styles.iconText, { color: bookmarkIconColor }]}>
+            Save
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.iconButton}>
+          <Feather name="external-link" size={32} color="white" />
+          <Text style={styles.iconText}>Link</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.iconButton}>
+          <Feather name="share-2" size={32} color="white" />
+          <Text style={styles.iconText}>Share</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 };
 
@@ -48,12 +86,11 @@ const OverlayUI = () => {
 const FeedScreen = () => {
   const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
-  // ★★★ 変更点3: 実際に使える高さを保存するためのstate ★★★
   const [listHeight, setListHeight] = useState(initialHeight);
+  const [viewableItemIndex, setViewableItemIndex] = useState(0);
 
   useEffect(() => {
     const fetchFeed = async () => {
-      // (データ取得ロジックは変更なし)
       setLoading(true);
       try {
         const response = await getFeed();
@@ -69,58 +106,111 @@ const FeedScreen = () => {
     fetchFeed();
   }, []);
 
-  // ★★★ 変更点4: 測定した高さを使ってレイアウト情報を生成 ★★★
   const getItemLayout = (_data: any, index: number) => ({
     length: listHeight,
     offset: listHeight * index,
     index,
   });
 
-  // ★★★ 変更点5: Viewが描画された時に実際の高さを測定し、stateを更新 ★★★
   const onLayout = (event: LayoutChangeEvent) => {
     const { height } = event.nativeEvent.layout;
-    // 測定した高さが0より大きく、現在の高さと異なる場合のみ更新
     if (height > 0 && height !== listHeight) {
       setListHeight(height);
     }
   };
 
+  const onViewableItemsChanged = useCallback(
+    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
+      if (viewableItems.length > 0 && viewableItems[0].index !== null) {
+        setViewableItemIndex(viewableItems[0].index);
+      }
+    },
+    []
+  );
+
+  const viewabilityConfig = useRef<ViewabilityConfig>({
+    itemVisiblePercentThreshold: 50,
+  }).current;
+
+  const handleBookmarkPress = async () => {
+    const currentItem = feedItems[viewableItemIndex];
+    if (!currentItem) return;
+
+    const newItems = [...feedItems];
+    const targetItem = { ...newItems[viewableItemIndex] };
+    
+    targetItem.is_bookmarked = !targetItem.is_bookmarked;
+    newItems[viewableItemIndex] = targetItem;
+    setFeedItems(newItems);
+
+    try {
+      if (targetItem.is_bookmarked) {
+        await addBookmark(targetItem.paper_id);
+      } else {
+        await deleteBookmark(targetItem.paper_id);
+      }
+    } catch (error) {
+      console.error('Bookmark operation failed, reverting UI.', error);
+      targetItem.is_bookmarked = !targetItem.is_bookmarked;
+      newItems[viewableItemIndex] = targetItem;
+      setFeedItems([...newItems]);
+    }
+  };
+
+  const doubleTap = Gesture.Tap()
+    .numberOfTaps(2)
+    .onEnd((_event, success) => {
+      if (success) {
+        handleBookmarkPress();
+      }
+    });
+
   if (loading) {
     return <ActivityIndicator style={styles.container} size="large" />;
   }
 
+  const currentItem = feedItems.length > 0 ? feedItems[viewableItemIndex] : null;
+
   return (
-    // ★★★ 変更点6: onLayoutで高さを測定する ★★★
-    <View style={styles.container} onLayout={onLayout}>
-      {/* 測定が完了してからFlatListを描画 */}
-      {listHeight > 0 && (
-        <FlatList
-          data={feedItems}
-          // ★★★ 変更点7: 測定した高さをPaperItemに渡す ★★★
-          renderItem={({ item, index }) => <PaperItem item={item} index={index} containerHeight={listHeight} />}
-          keyExtractor={(item) => item.feed_id}
-          pagingEnabled
-          showsVerticalScrollIndicator={false}
-          getItemLayout={getItemLayout}
-          windowSize={2}
-          initialNumToRender={1}
-          maxToRenderPerBatch={1}
+    <GestureDetector gesture={doubleTap}>
+      <View style={styles.container} onLayout={onLayout}>
+        {listHeight > 0 && (
+          <FlatList
+            data={feedItems}
+            renderItem={({ item, index }) => (
+              <PaperItem
+                item={item}
+                index={index}
+                containerHeight={listHeight}
+              />
+            )}
+            keyExtractor={(item) => item.feed_id}
+            pagingEnabled
+            showsVerticalScrollIndicator={false}
+            getItemLayout={getItemLayout}
+            onViewableItemsChanged={onViewableItemsChanged}
+            viewabilityConfig={viewabilityConfig}
+            windowSize={2}
+            initialNumToRender={1}
+            maxToRenderPerBatch={1}
+          />
+        )}
+        <OverlayUI
+          currentItem={currentItem}
+          onBookmarkPress={handleBookmarkPress}
         />
-      )}
-      <OverlayUI />
-    </View>
+      </View>
+    </GestureDetector>
   );
 };
 
-// --- スタイル定義 ---
 const styles = StyleSheet.create({
   container: {
-    flex: 1, // 親要素いっぱいに広がる
+    flex: 1,
   },
   paperContainer: {
-    // widthは画面幅で固定
     width: Dimensions.get('window').width,
-    justifyContent: 'center', 
+    justifyContent: 'center',
     paddingHorizontal: 20,
   },
   title: {
@@ -140,7 +230,7 @@ const styles = StyleSheet.create({
     color: '#eee',
   },
   overlayContainer: {
-    ...StyleSheet.absoluteFillObject, // position: absolute, top/left/right/bottom: 0 と同じ
+    ...StyleSheet.absoluteFillObject,
   },
   rightIconsWrapper: {
     position: 'absolute',
@@ -156,7 +246,7 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 12,
     marginTop: 4,
-  }
+  },
 });
 
 export default FeedScreen;
