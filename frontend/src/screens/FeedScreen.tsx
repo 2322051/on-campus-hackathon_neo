@@ -13,6 +13,9 @@ import {
 } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Feather } from '@expo/vector-icons';
+import { Audio } from 'expo-av';
+import { useIsFocused } from '@react-navigation/native';
+
 import { getFeed, addBookmark, deleteBookmark } from '../api';
 import { FeedItem } from '../types';
 
@@ -88,6 +91,9 @@ const FeedScreen = () => {
   const [loading, setLoading] = useState(true);
   const [listHeight, setListHeight] = useState(initialHeight);
   const [viewableItemIndex, setViewableItemIndex] = useState(0);
+  const soundRef = useRef<Audio.Sound | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const isFocused = useIsFocused();
 
   useEffect(() => {
     const fetchFeed = async () => {
@@ -105,6 +111,49 @@ const FeedScreen = () => {
     };
     fetchFeed();
   }, []);
+
+  useEffect(() => {
+    const loadAndPlaySound = async () => {
+      try {
+        await Audio.setAudioModeAsync({
+          playsInSilentModeIOS: true,
+        });
+      } catch (e) {
+        console.error("Failed to set audio mode", e);
+      }
+
+      const currentItem = feedItems[viewableItemIndex];
+      if (!currentItem) return;
+
+      if (soundRef.current) {
+        await soundRef.current.unloadAsync();
+        soundRef.current = null;
+      }
+
+      try {
+        console.log(`Loading sound from: ${currentItem.audio_url}`);
+        const { sound } = await Audio.Sound.createAsync(
+          { uri: currentItem.audio_url },
+          { shouldPlay: true }
+        );
+        soundRef.current = sound;
+        setIsPlaying(true);
+      } catch (error) {
+        console.error('Failed to load sound:', error);
+      }
+    };
+
+    if (isFocused && feedItems.length > 0) {
+      loadAndPlaySound();
+    } else {
+      soundRef.current?.unloadAsync();
+      soundRef.current = null;
+    }
+
+    return () => {
+      soundRef.current?.unloadAsync();
+    };
+  }, [viewableItemIndex, feedItems, isFocused]);
 
   const getItemLayout = (_data: any, index: number) => ({
     length: listHeight,
