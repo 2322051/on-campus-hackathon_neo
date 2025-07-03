@@ -17,3 +17,40 @@ export const getFeed = async (): Promise<FeedResponse> => {
     throw error;
   }
 };
+
+export const addBookmark = async (paperId: string): Promise<any> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/bookmarks`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ paper_id: paperId }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to add bookmark');
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Add bookmark error:', error);
+    throw error;
+  }
+};
+
+export const deleteBookmark = async (paperId: string): Promise<void> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/bookmarks`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ paper_id: paperId }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to delete bookmark');
+    }
+  } catch (error) {
+    console.error('Delete bookmark error:', error);
+    throw error;
+  }
+};
