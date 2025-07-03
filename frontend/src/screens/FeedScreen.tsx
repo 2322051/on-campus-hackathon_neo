@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,6 @@ import {
   ViewabilityConfig,
   ViewToken,
   Linking,
-  // ★★★ 変更点: Shareをインポート ★★★
   Share,
 } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -24,66 +23,30 @@ import { FeedItem } from '../types';
 
 const initialHeight = Dimensions.get('window').height;
 
-// PaperItemコンポーネントは変更なし
-const PaperItem = ({
-  item,
-  index,
-  containerHeight,
-}: {
-  item: FeedItem;
-  index: number;
-  containerHeight: number;
-}) => {
+// PaperItem, OverlayUIコンポーネントは変更なし
+const PaperItem = ({ item, index, containerHeight }: { item: FeedItem; index: number; containerHeight: number; }) => {
   const backgroundColor = index % 2 === 0 ? '#0d001a' : '#1a000d';
-
   return (
-    <View
-      style={[
-        styles.paperContainer,
-        { height: containerHeight, backgroundColor },
-      ]}
-    >
-      <Text style={styles.title} numberOfLines={3}>
-        {item.title}
-      </Text>
-      <Text style={styles.authors} numberOfLines={2}>
-        {item.authors.join(', ')}
-      </Text>
-      <Text style={styles.summary} numberOfLines={10}>
-        {item.summary}
-      </Text>
+    <View style={[styles.paperContainer, { height: containerHeight, backgroundColor }]}>
+      <Text style={styles.title} numberOfLines={3}>{item.title}</Text>
+      <Text style={styles.authors} numberOfLines={2}>{item.authors.join(', ')}</Text>
+      <Text style={styles.summary} numberOfLines={10}>{item.summary}</Text>
     </View>
   );
 };
-
-// OverlayUIコンポーネントは、onSharePressを受け取るように変更
-const OverlayUI = ({
-  currentItem,
-  onBookmarkPress,
-  onLinkPress,
-  onSharePress, // ★★★ 変更点: propsを追加 ★★★
-}: {
-  currentItem: FeedItem | null;
-  onBookmarkPress: () => void;
-  onLinkPress: () => void;
-  onSharePress: () => void; // ★★★ 変更点: propsを追加 ★★★
-}) => {
+const OverlayUI = ({ currentItem, onBookmarkPress, onLinkPress, onSharePress }: { currentItem: FeedItem | null; onBookmarkPress: () => void; onLinkPress: () => void; onSharePress: () => void; }) => {
   const bookmarkIconColor = currentItem?.is_bookmarked ? '#34D399' : 'white';
-
   return (
     <View style={styles.overlayContainer} pointerEvents="box-none">
       <View style={styles.rightIconsWrapper} pointerEvents="auto">
         <TouchableOpacity style={styles.iconButton} onPress={onBookmarkPress}>
           <Feather name="bookmark" size={32} color={bookmarkIconColor} />
-          <Text style={[styles.iconText, { color: bookmarkIconColor }]}>
-            Save
-          </Text>
+          <Text style={[styles.iconText, { color: bookmarkIconColor }]}>Save</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.iconButton} onPress={onLinkPress}>
           <Feather name="external-link" size={32} color="white" />
           <Text style={styles.iconText}>Link</Text>
         </TouchableOpacity>
-        {/* ★★★ 変更点: onPressに関数を設定 ★★★ */}
         <TouchableOpacity style={styles.iconButton} onPress={onSharePress}>
           <Feather name="share-2" size={32} color="white" />
           <Text style={styles.iconText}>Share</Text>
@@ -92,6 +55,7 @@ const OverlayUI = ({
     </View>
   );
 };
+
 
 // --- メインの画面コンポーネント ---
 const FeedScreen = () => {
@@ -102,7 +66,6 @@ const FeedScreen = () => {
   const soundRef = useRef<Audio.Sound | null>(null);
   const isFocused = useIsFocused();
 
-  // ... (useEffect, getItemLayout, onLayout, onViewableItemsChangedは変更なし)
   useEffect(() => {
     const fetchFeed = async () => {
       setLoading(true);
@@ -111,27 +74,27 @@ const FeedScreen = () => {
         if (response.items) {
           setFeedItems(response.items);
         }
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setLoading(false);
-      }
+      } catch (e) { console.error(e); } 
+      finally { setLoading(false); }
     };
     fetchFeed();
   }, []);
 
+  const currentAudioUrl = useMemo(() => {
+    if (feedItems.length > 0 && viewableItemIndex < feedItems.length) {
+      return feedItems[viewableItemIndex].audio_url;
+    }
+    return null;
+  }, [viewableItemIndex, feedItems]);
+
+
   useEffect(() => {
-    const loadAndPlaySound = async () => {
+    const loadAndPlaySound = async (url: string) => {
       try {
-        await Audio.setAudioModeAsync({
-          playsInSilentModeIOS: true,
-        });
+        await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
       } catch (e) {
         console.error("Failed to set audio mode", e);
       }
-
-      const currentItem = feedItems[viewableItemIndex];
-      if (!currentItem) return;
 
       if (soundRef.current) {
         await soundRef.current.unloadAsync();
@@ -139,9 +102,9 @@ const FeedScreen = () => {
       }
 
       try {
-        console.log(`Loading sound from: ${currentItem.audio_url}`);
+        console.log(`Loading sound from: ${url}`);
         const { sound } = await Audio.Sound.createAsync(
-          { uri: currentItem.audio_url },
+          { uri: url },
           { shouldPlay: true }
         );
         soundRef.current = sound;
@@ -150,8 +113,8 @@ const FeedScreen = () => {
       }
     };
 
-    if (isFocused && feedItems.length > 0) {
-      loadAndPlaySound();
+    if (isFocused && currentAudioUrl) {
+      loadAndPlaySound(currentAudioUrl);
     } else {
       soundRef.current?.unloadAsync();
       soundRef.current = null;
@@ -160,7 +123,7 @@ const FeedScreen = () => {
     return () => {
       soundRef.current?.unloadAsync();
     };
-  }, [viewableItemIndex, feedItems, isFocused]);
+  }, [currentAudioUrl, isFocused]);
 
   const getItemLayout = (_data: any, index: number) => ({
     length: listHeight,
@@ -184,43 +147,38 @@ const FeedScreen = () => {
     []
   );
 
-  const viewabilityConfig = useRef<ViewabilityConfig>({
-    itemVisiblePercentThreshold: 50,
-  }).current;
+  const viewabilityConfig = useRef<ViewabilityConfig>({ itemVisiblePercentThreshold: 50 }).current;
 
-  // ... (handleBookmarkPress, doubleTapは変更なし)
+  // ★★★ ここから修正 ★★★
   const handleBookmarkPress = async () => {
     const currentItem = feedItems[viewableItemIndex];
     if (!currentItem) return;
 
-    const newItems = [...feedItems];
-    const targetItem = { ...newItems[viewableItemIndex] };
-    
-    targetItem.is_bookmarked = !targetItem.is_bookmarked;
-    newItems[viewableItemIndex] = targetItem;
-    setFeedItems(newItems);
-
     try {
-      if (targetItem.is_bookmarked) {
-        await addBookmark(targetItem.paper_id);
+      // 先にAPIを呼び出す
+      if (currentItem.is_bookmarked) {
+        await deleteBookmark(currentItem.paper_id);
       } else {
-        await deleteBookmark(targetItem.paper_id);
+        await addBookmark(currentItem.paper_id);
       }
-    } catch (error) {
-      console.error('Bookmark operation failed, reverting UI.', error);
+
+      // API通信が成功したら、UIの状態を更新する
+      const newItems = [...feedItems];
+      const targetItem = { ...newItems[viewableItemIndex] };
       targetItem.is_bookmarked = !targetItem.is_bookmarked;
       newItems[viewableItemIndex] = targetItem;
-      setFeedItems([...newItems]);
+      setFeedItems(newItems);
+
+    } catch (error) {
+      console.error("Bookmark operation failed", error);
+      // ここでユーザーにエラーを通知することも可能
     }
   };
+  // ★★★ ここまで修正 ★★★
 
-  const doubleTap = Gesture.Tap()
-    .numberOfTaps(2)
-    .onEnd((_event, success) => {
-      if (success) {
-        handleBookmarkPress();
-      }
-    });
+  const doubleTap = Gesture.Tap().numberOfTaps(2).onEnd((_event, success) => {
+      if (success) { handleBookmarkPress(); }
+  });
 
   const handleLinkPress = () => {
     const currentItem = feedItems[viewableItemIndex];
@@ -229,21 +187,16 @@ const FeedScreen = () => {
     }
   };
 
-  // ★★★ 変更点: 共有ボタンが押された時の処理 ★★★
   const handleSharePress = async () => {
     const currentItem = feedItems[viewableItemIndex];
     if (!currentItem) return;
 
     try {
-      await Share.share({
-        // 共有するメッセージ（論文タイトルとURL）
-        message: `${currentItem.title}\n${currentItem.paper_url}`,
-      });
+      await Share.share({ message: `${currentItem.title}\n${currentItem.paper_url}` });
     } catch (error: any) {
       console.error(error.message);
     }
   };
-
 
   if (loading) {
     return <ActivityIndicator style={styles.container} size="large" />;
@@ -258,11 +211,7 @@ const FeedScreen = () => {
           <FlatList
             data={feedItems}
             renderItem={({ item, index }) => (
-              <PaperItem
-                item={item}
-                index={index}
-                containerHeight={listHeight}
-              />
+              <PaperItem item={item} index={index} containerHeight={listHeight} />
             )}
             keyExtractor={(item) => item.feed_id}
             pagingEnabled
@@ -275,7 +224,6 @@ const FeedScreen = () => {
             maxToRenderPerBatch={1}
           />
         )}
-        {/* ★★★ 変更点: onSharePressを渡す ★★★ */}
         <OverlayUI
           currentItem={currentItem}
           onBookmarkPress={handleBookmarkPress}
@@ -286,6 +234,7 @@ const FeedScreen = () => {
     </GestureDetector>
   );
 };
+
 
 const styles = StyleSheet.create({
   container: {
