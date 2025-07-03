@@ -10,6 +10,8 @@ import {
   LayoutChangeEvent,
   ViewabilityConfig,
   ViewToken,
+  // ★★★ 変更点: Linkingをインポート ★★★
+  Linking,
 } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Feather } from '@expo/vector-icons';
@@ -21,7 +23,7 @@ import { FeedItem } from '../types';
 
 const initialHeight = Dimensions.get('window').height;
 
-// 1. 論文テキストを表示する部分
+// PaperItemコンポーネントは変更なし
 const PaperItem = ({
   item,
   index,
@@ -53,13 +55,15 @@ const PaperItem = ({
   );
 };
 
-// 2. アイコンなど、手前に表示するUI
+// OverlayUIコンポーネントは、onLinkPressを受け取るように変更
 const OverlayUI = ({
   currentItem,
   onBookmarkPress,
+  onLinkPress, // ★★★ 変更点: propsを追加 ★★★
 }: {
   currentItem: FeedItem | null;
   onBookmarkPress: () => void;
+  onLinkPress: () => void; // ★★★ 変更点: propsを追加 ★★★
 }) => {
   const bookmarkIconColor = currentItem?.is_bookmarked ? '#34D399' : 'white';
 
@@ -72,7 +76,8 @@ const OverlayUI = ({
             Save
           </Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.iconButton}>
+        {/* ★★★ 変更点: onPressに関数を設定 ★★★ */}
+        <TouchableOpacity style={styles.iconButton} onPress={onLinkPress}>
           <Feather name="external-link" size={32} color="white" />
           <Text style={styles.iconText}>Link</Text>
         </TouchableOpacity>
@@ -95,6 +100,7 @@ const FeedScreen = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const isFocused = useIsFocused();
 
+  // ... (useEffect, getItemLayout, onLayout, onViewableItemsChangedは変更なし)
   useEffect(() => {
     const fetchFeed = async () => {
       setLoading(true);
@@ -181,6 +187,8 @@ const FeedScreen = () => {
     itemVisiblePercentThreshold: 50,
   }).current;
 
+
+  // ... (handleBookmarkPress, doubleTapは変更なし)
   const handleBookmarkPress = async () => {
     const currentItem = feedItems[viewableItemIndex];
     if (!currentItem) return;
@@ -214,6 +222,14 @@ const FeedScreen = () => {
       }
     });
 
+  // ★★★ 変更点: 外部リンクボタンが押された時の処理 ★★★
+  const handleLinkPress = () => {
+    const currentItem = feedItems[viewableItemIndex];
+    if (currentItem?.paper_url) {
+      Linking.openURL(currentItem.paper_url);
+    }
+  };
+
   if (loading) {
     return <ActivityIndicator style={styles.container} size="large" />;
   }
@@ -244,9 +260,11 @@ const FeedScreen = () => {
             maxToRenderPerBatch={1}
           />
         )}
+        {/* ★★★ 変更点: onLinkPressを渡す ★★★ */}
         <OverlayUI
           currentItem={currentItem}
           onBookmarkPress={handleBookmarkPress}
+          onLinkPress={handleLinkPress}
         />
       </View>
     </GestureDetector>
