@@ -10,8 +10,9 @@ import {
   LayoutChangeEvent,
   ViewabilityConfig,
   ViewToken,
-  // ★★★ 変更点: Linkingをインポート ★★★
   Linking,
+  // ★★★ 変更点: Shareをインポート ★★★
+  Share,
 } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Feather } from '@expo/vector-icons';
@@ -55,15 +56,17 @@ const PaperItem = ({
   );
 };
 
-// OverlayUIコンポーネントは、onLinkPressを受け取るように変更
+// OverlayUIコンポーネントは、onSharePressを受け取るように変更
 const OverlayUI = ({
   currentItem,
   onBookmarkPress,
-  onLinkPress, // ★★★ 変更点: propsを追加 ★★★
+  onLinkPress,
+  onSharePress, // ★★★ 変更点: propsを追加 ★★★
 }: {
   currentItem: FeedItem | null;
   onBookmarkPress: () => void;
-  onLinkPress: () => void; // ★★★ 変更点: propsを追加 ★★★
+  onLinkPress: () => void;
+  onSharePress: () => void; // ★★★ 変更点: propsを追加 ★★★
 }) => {
   const bookmarkIconColor = currentItem?.is_bookmarked ? '#34D399' : 'white';
 
@@ -76,12 +79,12 @@ const OverlayUI = ({
             Save
           </Text>
         </TouchableOpacity>
-        {/* ★★★ 変更点: onPressに関数を設定 ★★★ */}
         <TouchableOpacity style={styles.iconButton} onPress={onLinkPress}>
           <Feather name="external-link" size={32} color="white" />
           <Text style={styles.iconText}>Link</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.iconButton}>
+        {/* ★★★ 変更点: onPressに関数を設定 ★★★ */}
+        <TouchableOpacity style={styles.iconButton} onPress={onSharePress}>
           <Feather name="share-2" size={32} color="white" />
           <Text style={styles.iconText}>Share</Text>
         </TouchableOpacity>
@@ -97,7 +100,6 @@ const FeedScreen = () => {
   const [listHeight, setListHeight] = useState(initialHeight);
   const [viewableItemIndex, setViewableItemIndex] = useState(0);
   const soundRef = useRef<Audio.Sound | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
   const isFocused = useIsFocused();
 
   // ... (useEffect, getItemLayout, onLayout, onViewableItemsChangedは変更なし)
@@ -143,7 +145,6 @@ const FeedScreen = () => {
           { shouldPlay: true }
         );
         soundRef.current = sound;
-        setIsPlaying(true);
       } catch (error) {
         console.error('Failed to load sound:', error);
       }
@@ -187,7 +188,6 @@ const FeedScreen = () => {
     itemVisiblePercentThreshold: 50,
   }).current;
 
-
   // ... (handleBookmarkPress, doubleTapは変更なし)
   const handleBookmarkPress = async () => {
     const currentItem = feedItems[viewableItemIndex];
@@ -222,13 +222,28 @@ const FeedScreen = () => {
       }
     });
 
-  // ★★★ 変更点: 外部リンクボタンが押された時の処理 ★★★
   const handleLinkPress = () => {
     const currentItem = feedItems[viewableItemIndex];
     if (currentItem?.paper_url) {
       Linking.openURL(currentItem.paper_url);
     }
   };
+
+  // ★★★ 変更点: 共有ボタンが押された時の処理 ★★★
+  const handleSharePress = async () => {
+    const currentItem = feedItems[viewableItemIndex];
+    if (!currentItem) return;
+
+    try {
+      await Share.share({
+        // 共有するメッセージ（論文タイトルとURL）
+        message: `${currentItem.title}\n${currentItem.paper_url}`,
+      });
+    } catch (error: any) {
+      console.error(error.message);
+    }
+  };
+
 
   if (loading) {
     return <ActivityIndicator style={styles.container} size="large" />;
@@ -260,11 +275,12 @@ const FeedScreen = () => {
             maxToRenderPerBatch={1}
           />
         )}
-        {/* ★★★ 変更点: onLinkPressを渡す ★★★ */}
+        {/* ★★★ 変更点: onSharePressを渡す ★★★ */}
         <OverlayUI
           currentItem={currentItem}
           onBookmarkPress={handleBookmarkPress}
           onLinkPress={handleLinkPress}
+          onSharePress={handleSharePress}
         />
       </View>
     </GestureDetector>
