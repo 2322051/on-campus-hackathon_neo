@@ -13,3 +13,8 @@ Thumbs.db
 # 環境変数ファイル
 .env
 backend/.env
+pyproject.toml
+uv.lock
+
+# takahashi file
+todo.md
