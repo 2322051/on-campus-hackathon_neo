@@ -196,7 +196,7 @@ const styles = StyleSheet.create({
   rightIconsWrapper: {
     position: 'absolute',
     // ★★★ 変更点 ★★★
-    bottom: 170, 
+    bottom: 160, 
     right: 10, 
     alignItems: 'center',
   },

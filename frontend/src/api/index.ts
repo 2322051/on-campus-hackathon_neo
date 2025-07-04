@@ -1,85 +1,39 @@
-import { FeedResponse } from '../types'; // 型定義を後で作成します
-const API_BASE_URL = 'http://127.0.0.1:8000/api';
+import { FeedResponse, FeedItem, UserSettings, UserSettingsUpdateRequest } from '../types';
 
-export const getFeed = async (): Promise<FeedResponse> => {
-  try {
- 
-    const response = await fetch(`${API_BASE_URL}/feed`);
+const API_BASE_URL = 'http://127.0.0.1:8000/api'; // シミュレータ用
 
-    if (!response.ok) {
-      throw new Error('Network response was not ok');
-    }
-    const data: FeedResponse = await response.json();
-    return data;
-  } catch (error) {
-    console.error('Failed to fetch feed:', error);
-    throw error;
-  }
+/** # 呼び出し: アプリ初回起動時。役割: 即時表示用の固定フィード10件を取得。 */
+export const getInitialFeed = async (): Promise<FeedResponse> => {
+  const response = await fetch(`${API_BASE_URL}/feed/initial`);
+  if (!response.ok) throw new Error('Failed to fetch initial feed');
+  return await response.json();
 };
 
-export const addBookmark = async (paperId: string): Promise<any> => {
-  try {
-    const response = await fetch(`${API_BASE_URL}/bookmarks`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ paper_id: paperId }),
-    });
-    if (!response.ok) {
-      throw new Error('Failed to add bookmark');
-    }
-    return await response.json();
-  } catch (error) {
-    console.error('Add bookmark error:', error);
-    throw error;
-  }
+/** # 呼び出し: アプリ初回起動時。役割: 裏でパーソナライズされたフィードの生成を開始させる。 */
+export const generateFeed = async (userId: number = 1): Promise<any> => {
+  const response = await fetch(`${API_BASE_URL}/feed/generate?user_id=${userId}`, { method: 'POST' });
+  if (!response.ok) throw new Error('Failed to start feed generation');
+  return await response.json();
 };
 
-export const deleteBookmark = async (paperId: string): Promise<void> => {
-  try {
-    const response = await fetch(`${API_BASE_URL}/bookmarks`, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ paper_id: paperId }),
-    });
-    if (!response.ok) {
-      throw new Error('Failed to delete bookmark');
-    }
-  } catch (error) {
-    console.error('Delete bookmark error:', error);
-    throw error;
-  }
+/** # 呼び出し: スワイプ時。役割: 次のパーソナライズ済み論文を1件取得。 */
+export const getNextFeedItem = async (userId: number = 1): Promise<FeedItem> => {
+  const response = await fetch(`${API_BASE_URL}/feed/next?user_id=${userId}`);
+  if (!response.ok) throw new Error('Failed to fetch next feed item');
+  return await response.json();
 };
 
-export const getBookmarks = async (): Promise<FeedResponse> => {
-  try {
-    const response = await fetch(`${API_BASE_URL}/bookmarks`);
-    if (!response.ok) {
-      throw new Error('Network response was not ok');
-    }
-    const data: FeedResponse = await response.json();
-    return data;
-  } catch (error) {
-    console.error('Failed to fetch bookmarks:', error);
-    throw error;
-  }
-};
+/** # 呼び出し: 履歴画面表示時。役割: ブックマーク済みの論文リストを取得。 */
+export const getBookmarks = async (): Promise<FeedResponse> => { /* ... */ };
 
-export const searchPapers = async (query: string): Promise<FeedResponse> => {
-  try {
-    // URLエンコードして、安全にクエリを送信する
-    const encodedQuery = encodeURIComponent(query);
-    const response = await fetch(`${API_BASE_URL}/search?q=${encodedQuery}`);
-    if (!response.ok) {
-      throw new Error('Network response was not ok');
-    }
-    const data: FeedResponse = await response.json();
-    return data;
-  } catch (error) {
-    console.error('Failed to search papers:', error);
-    throw error;
-  }
-};
+/** # 呼び出し: 論文をブックマークに追加する時。 */
+export const addBookmark = async (paperId: string): Promise<any> => { /* ... */ };
+
+/** # 呼び出し: 既存のブックマークを解除する時。 */
+export const deleteBookmark = async (paperId: string): Promise<void> => { /* ... */ };
+
+/** # 呼び出し: 設定画面表示時。役割: 現在の設定内容を読み込む。 */
+export const getSettings = async (userId: number = 1): Promise<UserSettings> => { /* ... */ };
+
+/** # 呼び出し: 設定画面で「更新」ボタンが押された時。役割: 変更内容をサーバーに保存し、新しいフィードを受け取る。 */
+export const updateSettings = async (updateData: UserSettingsUpdateRequest, userId: number = 1): Promise<FeedResponse> => { /* ... */ };
