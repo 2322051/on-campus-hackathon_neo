@@ -42,81 +42,81 @@ def save_audio_data():
 
         # データの確認．
         response = supabase.table('bookmark').select('*').execute()
-        # print(response.data)
+        print(response.data)
         response = supabase.table('user_info').select('*').execute()
-        # print(response.data)
+        print(response.data)
         response = supabase.table('feed').select('*').execute()
-        # print(response.data)
+        print(response.data)
         response = supabase.table('paper_info').select('*').execute()
-        # print(response.data)
+        print(response.data)
         print("既存のテーブルの中身を確認．")
 
 
 
         # user infoデータの挿入
-        # user_info_data = {
-        #     "user_id": 1,
-        #     "uuid": str(uuid.uuid4()), # UUIDを生成して文字列に変換
-        #     "voice_type": 1, # 任意の値を設定
-        #     "profile": {"name": "Test User", "age": 30}, # JSONBデータ
-        #     "keyword": "RAG", # 任意の値を設定
-        #     "additional_prompt": "This is an additional prompt for the test user." # 任意の値を設定
-        # }
-        # insert_response = supabase.table("user_info").insert(user_info_data).execute()
-        # if insert_response.data:
-        #     print("データ挿入成功:", insert_response.data)
-        # else:
-        #     print("データ挿入失敗:", insert_response.error)
+        user_info_data = {
+            "user_id": 1,
+            "uuid": str(uuid.uuid4()), # UUIDを生成して文字列に変換
+            "voice_type": 1, # 任意の値を設定
+            "profile": {"name": "Test User", "age": 30}, # JSONBデータ
+            "keyword": "RAG", # 任意の値を設定
+            "additional_prompt": "This is an additional prompt for the test user." # 任意の値を設定
+        }
+        insert_response = supabase.table("user_info").insert(user_info_data).execute()
+        if insert_response.data:
+            print("データ挿入成功:", insert_response.data)
+        else:
+            print("データ挿入失敗:", insert_response.error)
 
 
-        # # ブックマークデータの挿入
-        # book_mark_data = {
-        #     "bookmark_id": 1,
-        #     "user_id": 1,
-        #     "title": "Attention Is All You Need",
-        #     "author": "Ashish Vaswani et al.",
-        #     "url": "https://arxiv.org/abs/1706.03762", # 'email' を 'url' に修正し、値を追加
-        #     "references_date": "2025-07-04", # 'reference_date' のスペルを修正
-        # }
-        # insert_response = supabase.table("bookmark").insert(book_mark_data).execute()
-        # if insert_response.data:
-        #     print("データ挿入成功:", insert_response.data)
-        # else:
-        #     print("データ挿入失敗:", insert_response.error)
+        # ブックマークデータの挿入
+        book_mark_data = {
+            "bookmark_id": 1,
+            "user_id": 1,
+            "title": "Attention Is All You Need",
+            "author": "Ashish Vaswani et al.",
+            "url": "https://arxiv.org/abs/1706.03762", # 'email' を 'url' に修正し、値を追加
+            "references_date": "2025-07-04", # 'reference_date' のスペルを修正
+        }
+        insert_response = supabase.table("bookmark").insert(book_mark_data).execute()
+        if insert_response.data:
+            print("データ挿入成功:", insert_response.data)
+        else:
+            print("データ挿入失敗:", insert_response.error)
 
 
 
-        # # 音声ファイルのpoc
-        # paper_info_data = {
-        #     "paper_id": 1,
-        #     "title": "Attention Is All You Need",
-        #     "author": "Ashish Vaswani et al.",
-        #     "published_data": "2017-6-12",
-        #     "arxiv_url": "https://arxiv.org/abs/1706.03762",
-        #     "arxiv_category": "CS",
-        #     "abstract": "this is abst",
-        #     "gemini_abstract": "this is gemini's abst",
-        #     "created_at": datetime.datetime.now().isoformat() + "Z"
-        # }
-        # insert_response = supabase.table("paper_info").insert(paper_info_data).execute()
-        # if insert_response.data:
-        #     print("データ挿入成功:", insert_response.data)
-        # else:
-        #     print("データ挿入失敗:", insert_response.error)
+        # 音声ファイルのpoc
+        paper_info_data = {
+            "paper_id": 1,
+            "title": "Attention Is All You Need",
+            "author": "Ashish Vaswani et al.",
+            "published_data": "2017-6-12",
+            "arxiv_url": "https://arxiv.org/abs/1706.03762",
+            "arxiv_category": "CS",
+            "abstract": "this is abst",
+            "gemini_abstract": "this is gemini's abst",
+            "created_at": datetime.datetime.now().isoformat() + "Z"
+        }
+        insert_response = supabase.table("paper_info").insert(paper_info_data).execute()
+        if insert_response.data:
+            print("データ挿入成功:", insert_response.data)
+        else:
+            print("データ挿入失敗:", insert_response.error)
 
 
-        # # 音声ファイルのpoc
-        # feed_data = {
-        #     "feed_id": 1,
-        #     "user_id": 1,
-        #     "paper_id": 1,
-        #     "voice": audio_data_base64_string,
-        # }
-        # insert_response = supabase.table("feed").insert(feed_data).execute()
-        # if insert_response.data:
-        #     print("データ挿入成功:", insert_response.data)
-        # else:
-        #     print("データ挿入失敗:", insert_response.error)
+        # 音声ファイルのpoc
+        feed_data = {
+            "feed_id": 1,
+            "user_id": 1,
+            "paper_id": 1,
+            "voice": audio_data_base64_string,
+        }
+        insert_response = supabase.table("feed").insert(feed_data).execute()
+        if insert_response.data:
+            print("データ挿入成功:", insert_response.data)
+        else:
+            print("データ挿入失敗:", insert_response.error)
 
 
 
