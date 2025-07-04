@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -16,32 +16,73 @@ import {
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Feather } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
-import { useIsFocused } from '@react-navigation/native';
+import { useIsFocused, useNavigation } from '@react-navigation/native';
 
 import { getFeed, addBookmark, deleteBookmark } from '../api';
 import { FeedItem } from '../types';
 
 const initialHeight = Dimensions.get('window').height;
 
-// PaperItem, OverlayUIコンポーネントは変更なし
-const PaperItem = ({ item, index, containerHeight }: { item: FeedItem; index: number; containerHeight: number; }) => {
+// PaperItemコンポーネントは変更なし
+const PaperItem = ({
+  item,
+  index,
+  containerHeight,
+}: {
+  item: FeedItem;
+  index: number;
+  containerHeight: number;
+}) => {
   const backgroundColor = index % 2 === 0 ? '#0d001a' : '#1a000d';
+
   return (
-    <View style={[styles.paperContainer, { height: containerHeight, backgroundColor }]}>
-      <Text style={styles.title} numberOfLines={3}>{item.title}</Text>
-      <Text style={styles.authors} numberOfLines={2}>{item.authors.join(', ')}</Text>
-      <Text style={styles.summary} numberOfLines={10}>{item.summary}</Text>
+    <View
+      style={[
+        styles.paperContainer,
+        { height: containerHeight, backgroundColor },
+      ]}
+    >
+      <Text style={styles.title} numberOfLines={3}>
+        {item.title}
+      </Text>
+      <Text style={styles.authors} numberOfLines={2}>
+        {item.authors.join(', ')}
+      </Text>
+      <Text style={styles.summary} numberOfLines={10}>
+        {item.summary}
+      </Text>
     </View>
   );
 };
-const OverlayUI = ({ currentItem, onBookmarkPress, onLinkPress, onSharePress }: { currentItem: FeedItem | null; onBookmarkPress: () => void; onLinkPress: () => void; onSharePress: () => void; }) => {
+
+// OverlayUIコンポーネントは変更なし
+const OverlayUI = ({
+  currentItem,
+  onBookmarkPress,
+  onLinkPress,
+  onSharePress,
+  onSearchPress,
+}: {
+  currentItem: FeedItem | null;
+  onBookmarkPress: () => void;
+  onLinkPress: () => void;
+  onSharePress: () => void;
+  onSearchPress: () => void;
+}) => {
   const bookmarkIconColor = currentItem?.is_bookmarked ? '#34D399' : 'white';
+
   return (
     <View style={styles.overlayContainer} pointerEvents="box-none">
+      <TouchableOpacity style={styles.searchIcon} onPress={onSearchPress} pointerEvents="auto">
+        <Feather name="search" size={28} color="white" />
+      </TouchableOpacity>
+      
       <View style={styles.rightIconsWrapper} pointerEvents="auto">
         <TouchableOpacity style={styles.iconButton} onPress={onBookmarkPress}>
           <Feather name="bookmark" size={32} color={bookmarkIconColor} />
-          <Text style={[styles.iconText, { color: bookmarkIconColor }]}>Save</Text>
+          <Text style={[styles.iconText, { color: bookmarkIconColor }]}>
+            Save
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.iconButton} onPress={onLinkPress}>
           <Feather name="external-link" size={32} color="white" />
@@ -56,9 +97,9 @@ const OverlayUI = ({ currentItem, onBookmarkPress, onLinkPress, onSharePress }: 
   );
 };
 
-
 // --- メインの画面コンポーネント ---
 const FeedScreen = () => {
+  const navigation = useNavigation<any>();
   const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [listHeight, setListHeight] = useState(initialHeight);
@@ -68,43 +109,44 @@ const FeedScreen = () => {
 
   useEffect(() => {
     const fetchFeed = async () => {
-      setLoading(true);
+      // setLoading(true); // 毎回インジケーターが出ないように、ここではコメントアウトしても良い
       try {
         const response = await getFeed();
         if (response.items) {
           setFeedItems(response.items);
         }
-      } catch (e) { console.error(e); } 
-      finally { setLoading(false); }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        // setLoading(false);
+      }
     };
-    fetchFeed();
-  }, []);
 
-  const currentAudioUrl = useMemo(() => {
-    if (feedItems.length > 0 && viewableItemIndex < feedItems.length) {
-      return feedItems[viewableItemIndex].audio_url;
+    // この画面が表示されている時だけデータを取得
+    if (isFocused) {
+      fetchFeed();
     }
-    return null;
-  }, [viewableItemIndex, feedItems]);
-
+  }, [isFocused]); // 依存配列を[]から[isFocused]に変更
 
   useEffect(() => {
-    const loadAndPlaySound = async (url: string) => {
+    const loadAndPlaySound = async () => {
       try {
-        await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
+        await Audio.setAudioModeAsync({
+          playsInSilentModeIOS: true,
+        });
       } catch (e) {
         console.error("Failed to set audio mode", e);
       }
-
+      const currentItem = feedItems[viewableItemIndex];
+      if (!currentItem) return;
       if (soundRef.current) {
         await soundRef.current.unloadAsync();
         soundRef.current = null;
       }
-
       try {
-        console.log(`Loading sound from: ${url}`);
+        console.log(`Loading sound from: ${currentItem.audio_url}`);
         const { sound } = await Audio.Sound.createAsync(
-          { uri: url },
+          { uri: currentItem.audio_url },
           { shouldPlay: true }
         );
         soundRef.current = sound;
@@ -112,18 +154,16 @@ const FeedScreen = () => {
         console.error('Failed to load sound:', error);
       }
     };
-
-    if (isFocused && currentAudioUrl) {
-      loadAndPlaySound(currentAudioUrl);
+    if (isFocused && feedItems.length > 0) {
+      loadAndPlaySound();
     } else {
       soundRef.current?.unloadAsync();
       soundRef.current = null;
     }
-
     return () => {
       soundRef.current?.unloadAsync();
     };
-  }, [currentAudioUrl, isFocused]);
+  }, [viewableItemIndex, feedItems, isFocused]);
 
   const getItemLayout = (_data: any, index: number) => ({
     length: listHeight,
@@ -149,32 +189,24 @@ const FeedScreen = () => {
 
   const viewabilityConfig = useRef<ViewabilityConfig>({ itemVisiblePercentThreshold: 50 }).current;
 
-  // ★★★ ここから修正 ★★★
   const handleBookmarkPress = async () => {
     const currentItem = feedItems[viewableItemIndex];
     if (!currentItem) return;
-
     try {
-      // 先にAPIを呼び出す
       if (currentItem.is_bookmarked) {
         await deleteBookmark(currentItem.paper_id);
       } else {
         await addBookmark(currentItem.paper_id);
       }
-
-      // API通信が成功したら、UIの状態を更新する
       const newItems = [...feedItems];
       const targetItem = { ...newItems[viewableItemIndex] };
       targetItem.is_bookmarked = !targetItem.is_bookmarked;
       newItems[viewableItemIndex] = targetItem;
       setFeedItems(newItems);
-
     } catch (error) {
       console.error("Bookmark operation failed", error);
-      // ここでユーザーにエラーを通知することも可能
     }
   };
-  // ★★★ ここまで修正 ★★★
 
   const doubleTap = Gesture.Tap().numberOfTaps(2).onEnd((_event, success) => {
       if (success) { handleBookmarkPress(); }
@@ -190,11 +222,27 @@ const FeedScreen = () => {
   const handleSharePress = async () => {
     const currentItem = feedItems[viewableItemIndex];
     if (!currentItem) return;
-
     try {
       await Share.share({ message: `${currentItem.title}\n${currentItem.paper_url}` });
     } catch (error: any) {
       console.error(error.message);
+    }
+  };
+
+  const handleSearchPress = () => {
+    const parentNavigator = navigation.getParent();
+    // ★★★ ここを修正 ★★★
+    navigation.getParent()?.navigate('Search');
+    // ログ1: まず、タップされたことを確認
+    console.log('Search icon tapped!'); 
+
+    if (parentNavigator) {
+      // ログ2: 親のナビゲーターが見つかったか確認
+      console.log('Parent navigator found. Navigating to Search...'); 
+      parentNavigator.navigate('Search');
+    } else {
+      // ログ3: 親のナビゲーターが見つからなかった場合
+      console.log('Parent navigator NOT found.'); 
     }
   };
 
@@ -229,6 +277,7 @@ const FeedScreen = () => {
           onBookmarkPress={handleBookmarkPress}
           onLinkPress={handleLinkPress}
           onSharePress={handleSharePress}
+          onSearchPress={handleSearchPress}
         />
       </View>
     </GestureDetector>
@@ -237,6 +286,10 @@ const FeedScreen = () => {
 
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
   container: {
     flex: 1,
   },
@@ -263,6 +316,12 @@ const styles = StyleSheet.create({
   },
   overlayContainer: {
     ...StyleSheet.absoluteFillObject,
+  },
+  searchIcon: {
+    position: 'absolute',
+    top: 60,
+    right: 20,
+    padding: 10,
   },
   rightIconsWrapper: {
     position: 'absolute',

@@ -67,3 +67,19 @@ export const getBookmarks = async (): Promise<FeedResponse> => {
     throw error;
   }
 };
+
+export const searchPapers = async (query: string): Promise<FeedResponse> => {
+  try {
+    // URLエンコードして、安全にクエリを送信する
+    const encodedQuery = encodeURIComponent(query);
+    const response = await fetch(`${API_BASE_URL}/search?q=${encodedQuery}`);
+    if (!response.ok) {
+      throw new Error('Network response was not ok');
+    }
+    const data: FeedResponse = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Failed to search papers:', error);
+    throw error;
+  }
+};
