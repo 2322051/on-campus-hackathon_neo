@@ -10,65 +10,45 @@ The paper data is validated using the Pydantic schema defined in backend/schemas
 This implementation is extendable for future integration with a real database.
 """
 
-from typing import List
-from pydantic import ValidationError  # type: ignore
-from backend.schemas.paper import PaperModel
-from backend.modules.PaperSummarizer import ContentSummarizer
+import json
+from ..modules.PaperGetter import PaperGetter
+from ..modules.PaperSummarizer import PaperSummarizer
 
-# Dummy database functions
-def dummy_db_read() -> List[PaperModel]:
+def main():
     """
-    Simulates reading paper records from a database.
-    Returns a list of PaperModel instances.
+    処理全体を統括するメイン関数
     """
-    # Dummy data representing a list of paper records.
-    data: List[dict] = [   # type: ignore
-        {
-            "title": "Sample Paper",
-            "authors": ["Alice", "Bob"],
-            "published": "2025-07-03T00:00:00",
-            "summary": "",  # Initially empty, to be updated after summarization.
-            "url": "http://example.com/paper"
-        }
-    ]
-    papers: List[PaperModel] = []
-    for item in data:  # type: ignore
-        try:
-            paper = PaperModel(**item)  # type: ignore
-            papers.append(paper)  # type: ignore
-        except ValidationError as e:  # type: ignore
-            print("Validation error:", e)  # type: ignore
-    return papers
+    # ★★★ キーワード空のテスト用にダミーデータを変更 ★★★
+    dummy_keyword = "" 
+    dummy_additional_prompt = "ずんだもんみたいな口調で要約してください。語尾には「〜なのだ。」"
 
-def dummy_db_update(paper: PaperModel) -> None:
-    """
-    Simulates updating a paper record in the database.
+    print(f"処理開始: キーワード='{dummy_keyword or '(指定なし)'}'")
 
-    For this dummy implementation, it simply prints the updated record.
-    """
-    print("Updated paper record:")
-    print(paper.json(indent=2, ensure_ascii=False))  # type: ignore
+    paper_getter = PaperGetter()
+    paper_summarizer = PaperSummarizer()
 
-def process_papers() -> None:
-    """
-    Main processing function:
-    - Reads paper records from the dummy database.
-    - Uses the ContentSummarizer to generate a summary.
-    - Updates each paper record with the generated summary.
-    - Simulates writing the updated record back to the database.
-    """
-    papers = dummy_db_read()
-    if not papers:
-        print("No papers found in the database.")
+    paper_data = paper_getter.fetch_by_keyword(dummy_keyword)
+    
+    if not paper_data:
+        print("\n処理を終了します。")
         return
 
-    summarizer = ContentSummarizer()
-    for paper in papers:
-        # Here, for demonstration, the summarizer processes either the existing summary (if any)
-        # or falls back to using the paper's title.
-        new_summary = summarizer.summarize(paper.summary or paper.title)
-        paper.summary = new_summary
-        dummy_db_update(paper)
+    print(f"\n論文取得成功: {paper_data['title']}")
 
-if __name__ == '__main__':
-    process_papers()
+    summary = paper_summarizer.summarize(
+        abstract=paper_data["abstract_original"],
+        additional_prompt=dummy_additional_prompt
+    )
+    paper_data["summary_japanese"] = summary
+    
+    print("\n要約生成成功。")
+
+    # ★★★ 最終データの表示方法を修正 ★★★
+    print("\n--- 処理完了: 最終データ ---")
+    # json.dumpsを使って、日本語もきれいに表示されるように設定
+    final_json_output = json.dumps(paper_data, indent=2, ensure_ascii=False)
+    print(final_json_output)
+    print("--------------------------")
+
+if __name__ == "__main__":
+    main()
