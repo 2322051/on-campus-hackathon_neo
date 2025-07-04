@@ -11,6 +11,12 @@ class VoicevoxClient:
         self,
         text: str,
         speaker: int,
+        # speed_scale: float, # 話速の調整
+        # pitch_scale: float, # ピッチ（全体の高さ）の調整
+        # intonation_scale: float, # 抑揚の調整
+        # pause_length: float, #
+        # pre_phoneme_length: float, # 音声開始前の無音区間の長さ
+        # post_phoneme_length: float, # 音声終了後の無音区間の長さ
         output_path: str="../output/"
     ):
         """create voice and output for output_path.
@@ -24,9 +30,15 @@ class VoicevoxClient:
 
         # 1. テキストから音声合成のためのクエリを作成
         # voicevoxapiは音声合成の前に，音声合成のためのqueryを発行するapiが存在する．
-        query_payload: dict[str, str | int] = {
+        query_payload: dict[str, str | int | float] = {
             'text': text,
             'speaker': speaker
+        #     'speedScale': speed_scale,
+        #     'pitchScale': pitch_scale,
+        #     'intonationScale': intonation_scale,
+        #     'pauseLength': pause_length,
+        #     'prePhonemeLength': pre_phoneme_length,
+        #     'postPhonemeLength': post_phoneme_length,
         }
 
         # Convert TypedDict to dict for params
@@ -35,10 +47,12 @@ class VoicevoxClient:
             params=dict(query_payload)
         )
 
-        if query_response.status_code != 200: # requestに成功しなかったら．
+        if query_response.status_code != 200:
             print(f"Error in audio_query: {query_response.text}")
             return
         query = query_response.json()
+
+        print(query)
 
         # 2. クエリを元に音声データを生成
         # 発行したqueryで音声合成する．
