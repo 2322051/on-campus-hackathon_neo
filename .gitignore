@@ -1,0 +1,23 @@
+# 仮想環境
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# OS固有のファイル
+.DS_Store
+Thumbs.db
+
+# 環境変数ファイル
+.env
+backend/.env
+pyproject.toml
+uv.lock
+
+# takahashi file
+todo.md
+
+# 論文データ
+papers_data.json
