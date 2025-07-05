@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, SafeAreaView, ActivityIndicator, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  SafeAreaView,
+  ActivityIndicator,
+  TouchableOpacity,
+} from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import * as Linking from 'expo-linking';
 import { getBookmarks } from '../api';
@@ -7,7 +15,6 @@ import { FeedItem } from '../types';
 
 // ブックマークアイテムを1つ表示するコンポーネント
 const BookmarkItem = ({ item }: { item: FeedItem }) => {
-  // タップされたら論文ページを開く
   const handlePress = () => {
     if (item.paper_url) {
       Linking.openURL(item.paper_url);
@@ -43,20 +50,19 @@ const HistoryScreen = () => {
       }
     };
 
-    // この画面が表示されている（フォーカスされている）時だけデータを取得する
     if (isFocused) {
       fetchBookmarks();
     }
   }, [isFocused]);
 
   if (loading) {
-    return <ActivityIndicator style={styles.container} size="large" />;
+    return <ActivityIndicator style={styles.centered} size="large" color="#3FE0B5" />;
   }
 
   if (error) {
     return (
-      <View style={styles.container}>
-        <Text>{error}</Text>
+      <View style={styles.centered}>
+        <Text style={styles.errorText}>{error}</Text>
       </View>
     );
   }
@@ -74,8 +80,8 @@ const HistoryScreen = () => {
           contentContainerStyle={{ paddingBottom: 20 }}
         />
       ) : (
-        <View style={styles.container}>
-          <Text>ブックマークされた論文はありません。</Text>
+        <View style={styles.centered}>
+          <Text style={styles.noItemText}>ブックマークされた論文はありません。</Text>
         </View>
       )}
     </SafeAreaView>
@@ -85,43 +91,54 @@ const HistoryScreen = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#f5f5f7',
-  },
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: '#000',
   },
   headerContainer: {
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-    backgroundColor: '#fff',
+    borderBottomColor: '#222',
+    backgroundColor: '#000',
   },
   header: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: 'bold',
+    color: '#fff',
+  },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#000',
   },
   itemContainer: {
-    backgroundColor: '#fff',
-    padding: 20,
+    backgroundColor: '#111',
+    padding: 16,
     marginVertical: 8,
     marginHorizontal: 16,
     borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowColor: '#3FE0B5',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
   },
   itemTitle: {
-    fontSize: 17,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fff',
   },
   itemAuthors: {
-    fontSize: 14,
-    color: 'gray',
-    marginTop: 8,
+    fontSize: 13,
+    color: '#ccc',
+    marginTop: 6,
+  },
+  noItemText: {
+    color: '#999',
+    fontSize: 16,
+  },
+  errorText: {
+    color: '#ff6b6b',
+    fontSize: 16,
   },
 });
 

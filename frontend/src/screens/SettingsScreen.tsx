@@ -8,87 +8,66 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  Modal,
+  FlatList,
 } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
-import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
+import { useIsFocused } from '@react-navigation/native';
 
-// バックエンドの UserSettings 型
 interface UserSettings {
   user_id: number;
   character_voice: number;
 }
 
-// 選択可能なキャラクターボイスのリスト（IDを1から順に割り振り）
 const AVAILABLE_VOICES = [
-  { id: 1, name: 'ずんだもん' },
+  { id: 3, name: 'ずんだもん' },
   { id: 2, name: '四国めたん' },
-  { id: 3, name: '春日部つむぎ' },
-  { id: 4, name: '雨晴はう' },
-  { id: 5, name: '波音リツ' },
-  { id: 6, name: '玄野武宏' },
-  { id: 7, name: '白上虎太郎' },
-  { id: 8, name: '青山龍星' },
-  { id: 9, name: '冥鳴ひまり' },
-  { id: 10, name: '九州そら' },
-  { id: 11, name: 'もち子さん' },
-  { id: 12, name: '剣崎雌雄' },
-  { id: 13, name: 'WhiteCUL,' },
-  { id: 14, name: '後鬼' },
-  { id: 15, name: 'No.7' },
-  { id: 16, name: 'ちび式じい' },
-  { id: 17, name: '櫻歌ミコ' },
-  { id: 18, name: '小夜/SAYO' },
-  { id: 19, name: 'ナースロボ＿タイプＴ' },
-  { id: 20, name: '聖騎士 紅桜' },
-  { id: 21, name: '雀松朱司' },
-  { id: 22, name: '麒ヶ島宗麟' },
-  { id: 23, name: '春歌ナナ' },
-  { id: 24, name: '猫使アル' },
-  { id: 25, name: '猫使ビィ' },
+  { id: 8, name: '春日部つむぎ' },
+  { id: 10, name: '雨晴はう' },
+  { id: 9, name: '波音リツ' },
+  { id: 11, name: '玄野武宏' },
+  { id: 12, name: '白上虎太郎' },
+  { id: 13, name: '青山龍星' },
+  { id: 14, name: '冥鳴ひまり' },
+  { id: 16, name: '九州そら' },
+  { id: 20, name: 'もち子さん' },
+  { id: 21, name: '剣崎雌雄' },
+  { id: 23, name: 'WhiteCUL' },
+  { id: 27, name: '後鬼' },
+  { id: 29, name: 'No.7' },
+  { id: 42, name: 'ちび式じい' },
+  { id: 43, name: '櫻歌ミコ' },
+  { id: 46, name: '小夜/SAYO' },
+  { id: 47, name: 'ナースロボ＿タイプＴ' },
+  { id: 51, name: '聖騎士 紅桜' },
+  { id: 52, name: '雀松朱司' },
+  { id: 53, name: '麒ヶ島宗麟' },
+  { id: 54, name: '春歌ナナ' },
+  { id: 55, name: '猫使アル' },
+  { id: 58, name: '猫使ビィ' },
 ];
 
-// 設定項目表示用のヘルパーコンポーネント
-const SettingItem = ({ title, iconName, children }: {
-  title: string;
-  iconName?: keyof typeof Feather.glyphMap;
-  children?: React.ReactNode;
-}) => (
-  <View style={styles.settingItem}>
-    <View style={styles.settingItemLeft}>
-      {iconName && <Feather name={iconName} size={24} color="#555" style={styles.settingIcon} />}
-      <Text style={styles.settingItemTitle}>{title}</Text>
-    </View>
-    <View style={styles.settingItemRight}>{children}</View>
-  </View>
-);
+const API_BASE_URL = 'http://127.0.0.1:8000';
+const CURRENT_USER_ID = 1;
 
 const SettingsScreen = () => {
-  const navigation = useNavigation();
   const isFocused = useIsFocused();
 
-  const [initialUserSettings, setInitialUserSettings] = useState<UserSettings | null>(null);
+  const [initialSettings, setInitialSettings] = useState<UserSettings | null>(null);
   const [editingVoice, setEditingVoice] = useState<number | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
 
-  const API_BASE_URL = 'http://127.0.0.1:8000';
-  const CURRENT_USER_ID = 1;
-
-  // ユーザー設定を取得
   const fetchUserSettings = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/settings/${CURRENT_USER_ID}`);
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      const data: UserSettings = await response.json();
-      setInitialUserSettings(data);
+      const res = await fetch(`${API_BASE_URL}/api/settings/${CURRENT_USER_ID}`);
+      const data: UserSettings = await res.json();
+      setInitialSettings(data);
       setEditingVoice(data.character_voice);
-    } catch (error) {
-      console.error('ユーザー設定の取得に失敗しました:', error);
-      Alert.alert('エラー', '設定の読み込みに失敗しました。');
-      setInitialUserSettings({ user_id: CURRENT_USER_ID, character_voice: 1 });
-      setEditingVoice(1);
+    } catch (e) {
+      Alert.alert('エラー', '設定の読み込みに失敗しました');
     } finally {
       setLoading(false);
     }
@@ -98,104 +77,149 @@ const SettingsScreen = () => {
     if (isFocused) fetchUserSettings();
   }, [isFocused]);
 
-  // 設定更新ハンドラー
   const handleUpdateSettings = async () => {
-    if (!initialUserSettings || isUpdating) return;
-    if (editingVoice === initialUserSettings.character_voice) {
-      Alert.alert('変更なし', '更新する設定がありません。');
-      return;
-    }
+  if (!initialSettings || isUpdating) return;
+  if (editingVoice === initialSettings.character_voice) {
+    Alert.alert('変更なし', '更新する内容がありません');
+    return;
+  }
 
-    setIsUpdating(true);
-    try {
-      const response = await fetch(
-        `${API_BASE_URL}/api/settings/${CURRENT_USER_ID}`,
-        {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ character_voice: editingVoice }),
-        }
-      );
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      const updatedData: UserSettings = await response.json();
-      setInitialUserSettings(updatedData);
-      setEditingVoice(updatedData.character_voice);
-      Alert.alert('成功', '設定を更新しました！');
-    } catch (error) {
-      console.error('設定の更新に失敗しました:', error);
-      Alert.alert('エラー', '設定の保存に失敗しました。もう一度お試しください。');
-      fetchUserSettings();
-    } finally {
-      setIsUpdating(false);
-    }
-  };
+  setIsUpdating(true);
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/settings/${CURRENT_USER_ID}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ character_voice: editingVoice }),
+    });
+    const updated = await response.json();
+    setInitialSettings(updated);
+    // ★ ココを消すことで未選択に戻る問題を防ぐ！
+    // setEditingVoice(updated.character_voice);
+    Alert.alert('成功', '設定が更新されました');
+  } catch {
+    Alert.alert('エラー', '更新に失敗しました');
+  } finally {
+    setIsUpdating(false);
+  }
+};
 
-  if (loading || !initialUserSettings) {
+  const getVoiceName = (id: number | undefined) =>
+    AVAILABLE_VOICES.find((v) => v.id === id)?.name || '未選択';
+
+  if (loading || !initialSettings) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#0000ff" />
-        <Text style={styles.loadingText}>設定を読み込み中...</Text>
+        <ActivityIndicator size="large" color="#3ddc97" />
+        <Text style={{ color: '#fff', marginTop: 10 }}>読み込み中...</Text>
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.headerContainer}>
-        <Text style={styles.headerTitle}>設定</Text>
-      </View>
-      <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-        {/* キャラクターボイス設定 */}
-        <Text style={styles.sectionTitle}>キャラクターボイス</Text>
-        <SettingItem title="ボイス選択" iconName="mic">
-          <Picker
-            selectedValue={editingVoice}
-            onValueChange={(itemValue: number) => setEditingVoice(itemValue)}
-            style={styles.picker}
-            itemStyle={styles.pickerItem}
-          >
-            {AVAILABLE_VOICES.map((voice) => (
-              <Picker.Item key={voice.id} label={voice.name} value={voice.id} />
-            ))}
-          </Picker>
-        </SettingItem>
+    <SafeAreaView style={styles.container}>
+      <ScrollView contentContainerStyle={{ padding: 20 }}>
+        <Text style={styles.title}>キャラクターボイス</Text>
+        <TouchableOpacity
+          style={styles.selectBox}
+          onPress={() => setModalVisible(true)}
+        >
+          <Text style={styles.selectBoxText}>{getVoiceName(editingVoice)}</Text>
+          <Feather name="chevron-down" size={20} color="#3ddc97" />
+        </TouchableOpacity>
 
-        {/* 更新ボタン */}
         <TouchableOpacity
           style={[styles.updateButton, isUpdating && styles.updateButtonDisabled]}
           onPress={handleUpdateSettings}
           disabled={isUpdating}
         >
           {isUpdating ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color="#000" />
           ) : (
             <Text style={styles.updateButtonText}>設定を更新</Text>
           )}
         </TouchableOpacity>
       </ScrollView>
+
+      {/* モーダル */}
+      <Modal visible={modalVisible} animationType="slide" transparent>
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <FlatList
+              data={AVAILABLE_VOICES}
+              keyExtractor={(item) => item.id.toString()}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.modalItem}
+                  onPress={() => {
+                    setEditingVoice(item.id);
+                    setModalVisible(false);
+                  }}
+                >
+                  <Text style={styles.modalItemText}>{item.name}</Text>
+                </TouchableOpacity>
+              )}
+            />
+            <TouchableOpacity
+              onPress={() => setModalVisible(false)}
+              style={styles.modalCloseButton}
+            >
+              <Text style={styles.modalCloseButtonText}>キャンセル</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#f0f2f5' },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f0f2f5' },
-  loadingText: { marginTop: 10, fontSize: 16, color: '#666' },
-  headerContainer: { padding: 20, borderBottomWidth: 1, borderBottomColor: '#e0e0e0', backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 24, fontWeight: 'bold', color: '#333' },
-  container: { flex: 1 },
-  contentContainer: { paddingBottom: 20, paddingHorizontal: 16 },
-  sectionTitle: { fontSize: 16, fontWeight: 'bold', color: '#666', marginTop: 20, marginBottom: 10, paddingHorizontal: 4 },
-  settingItem: { backgroundColor: '#fff', paddingVertical: 10, paddingHorizontal: 16, marginVertical: 4, borderRadius: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 },
-  settingItemLeft: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  settingIcon: { marginRight: 15, width: 24, textAlign: 'center' },
-  settingItemTitle: { fontSize: 17, color: '#333', fontWeight: '600' },
-  settingItemRight: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start' },
-  picker: { height: 150, width: '100%' },
-  pickerItem: { fontSize: 16 },
-  updateButton: { backgroundColor: '#007bff', padding: 15, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginTop: 30, marginHorizontal: 16 },
-  updateButtonDisabled: { backgroundColor: '#a0c9fa' },
-  updateButtonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+  container: { flex: 1, backgroundColor: '#1a1a1a' },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#1a1a1a' },
+  title: { fontSize: 16, color: '#fff', marginBottom: 10 },
+  selectBox: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#2a2a2a',
+    padding: 15,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#3ddc97',
+  },
+  selectBoxText: { fontSize: 16, color: '#fff' },
+  updateButton: {
+    marginTop: 30,
+    backgroundColor: '#3ddc97',
+    padding: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  updateButtonDisabled: { backgroundColor: '#aaa' },
+  updateButtonText: { color: '#000', fontSize: 16, fontWeight: 'bold' },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#000000aa',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    maxHeight: '60%',
+    backgroundColor: '#1a1a1a',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+  },
+  modalItem: {
+    paddingVertical: 15,
+    borderBottomColor: '#333',
+    borderBottomWidth: 1,
+  },
+  modalItemText: { fontSize: 16, color: '#fff' },
+  modalCloseButton: {
+    paddingVertical: 15,
+    alignItems: 'center',
+  },
+  modalCloseButtonText: { color: '#3ddc97', fontWeight: 'bold' },
 });
 
 export default SettingsScreen;
