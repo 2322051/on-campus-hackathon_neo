@@ -1,6 +1,10 @@
 import { FeedResponse, FeedItem, UserSettings, UserSettingsUpdateRequest } from '../types';
 
-const API_BASE_URL = 'http://127.0.0.1:8000/api';
+
+
+
+// config.ts
+export const API_BASE_URL = "http://192.168.1.12:8000/api";
 
 /** # 呼び出し: アプリ初回起動時。役割: 即時表示用の固定フィード10件を取得。 */
 export const getInitialFeed = async (userId: number = 1): Promise<FeedResponse> => {
