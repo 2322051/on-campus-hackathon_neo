@@ -19,7 +19,6 @@ import { Feather } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import { useIsFocused } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as FileSystem from 'expo-file-system';
 
 import { 
   getInitialFeed, 
@@ -33,15 +32,6 @@ import { FeedItem } from '../types';
 const initialHeight = Dimensions.get('window').height;
 const DUMMY_USER_ID = 1;
 const DUMMY_UUID = "user-unique-identifier-12345";
-
-// --- Base64をMP3ファイルとして保存する関数 ---
-const saveBase64AsAudioFile = async (base64Data: string, filename: string): Promise<string> => {
-  const path = `${FileSystem.cacheDirectory}${filename}`;
-  await FileSystem.writeAsStringAsync(path, base64Data, {
-    encoding: FileSystem.EncodingType.Base64,
-  });
-  return path;
-};
 
 const PaperItem = ({ item, index, containerHeight }: { item: FeedItem; index: number; containerHeight: number; }) => {
   return (
@@ -133,43 +123,54 @@ const FeedScreen = () => {
       if (dynamicCacheActive.current && newIndex > viewableItemIndex) {
         fetchNextItem();
       }
+      if (newIndex !== viewableItemIndex) {
+        stopAudio();
+      }
       setViewableItemIndex(newIndex);
     }
   }, [viewableItemIndex, fetchNextItem]);
 
-  // 🔽 Base64音声の読み込み＆再生
+  const playAudio = async (url: string) => {
+    try {
+      await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: url },
+        { shouldPlay: true, isLooping: true }
+      );
+      soundRef.current = sound;
+    } catch (error) {
+      console.error("Audio playback error:", error);
+    }
+  };
+
+  const stopAudio = async () => {
+    if (soundRef.current) {
+      await soundRef.current.unloadAsync();
+      soundRef.current = null;
+    }
+  };
+
+  // 音声読み上げ（論文が変わったときのみ）
   useEffect(() => {
-    const loadAndPlaySound = async () => {
-      const currentItem = feedItems[viewableItemIndex];
-      if (!currentItem || !isFocused) return;
-      if (soundRef.current) {
-        await soundRef.current.unloadAsync();
-        soundRef.current = null;
-      }
+    const currentItem = feedItems[viewableItemIndex];
+    if (!currentItem || !isFocused) return;
 
-      try {
-        await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
+    playAudio(currentItem.audio_url);
 
-        const response = await fetch(currentItem.audio_url); // ここでBase64を取得
-        const base64Audio = await response.text(); // APIがtext/plainで返す想定
-        const localUri = await saveBase64AsAudioFile(base64Audio, `audio_${currentItem.feed_id}.mp3`);
-
-        const { sound } = await Audio.Sound.createAsync(
-          { uri: localUri },
-          { shouldPlay: true, isLooping: true }
-        );
-        soundRef.current = sound;
-      } catch (error) {
-        console.error('Failed to load sound:', error);
-      }
+    return () => {
+      if (!isFocused) stopAudio(); // 画面から離れたときだけ停止
     };
-    loadAndPlaySound();
-    return () => { soundRef.current?.unloadAsync(); };
-  }, [viewableItemIndex, feedItems, isFocused]);
+  }, [viewableItemIndex]);
+
+  useEffect(() => {
+    if (!isFocused) stopAudio();
+  }, [isFocused]);
 
   const onLayout = (event: LayoutChangeEvent) => {
     const { height } = event.nativeEvent.layout;
-    if (height > 0 && height !== listHeight) { setListHeight(height); }
+    if (height > 0 && height !== listHeight) {
+      setListHeight(height);
+    }
   };
 
   const handleBookmarkPress = async () => {
@@ -191,19 +192,26 @@ const FeedScreen = () => {
     }
   };
 
-  const doubleTap = Gesture.Tap().numberOfTaps(2).onEnd((_event, success) => { if (success) { handleBookmarkPress(); } });
+  const doubleTap = Gesture.Tap().numberOfTaps(2).onEnd((_event, success) => {
+    if (success) handleBookmarkPress();
+  });
+
   const handleLinkPress = () => {
     const currentItem = feedItems[viewableItemIndex];
-    if (currentItem?.paper_url) { Linking.openURL(currentItem.paper_url); }
+    if (currentItem?.paper_url) Linking.openURL(currentItem.paper_url);
   };
+
   const handleSharePress = async () => {
     const currentItem = feedItems[viewableItemIndex];
     if (!currentItem) return;
-    try { await Share.share({ message: `${currentItem.title}\n${currentItem.paper_url}` }); }
-    catch (error: any) { console.error(error.message); }
+    try {
+      await Share.share({ message: `${currentItem.title}\n${currentItem.paper_url}` });
+    } catch (error: any) {
+      console.error(error.message);
+    }
   };
 
-  if (loading) { return <ActivityIndicator style={styles.container} size="large" />; }
+  if (loading) return <ActivityIndicator style={styles.container} size="large" />;
 
   const currentItem = feedItems.length > 0 ? feedItems[viewableItemIndex] : null;
 
@@ -233,29 +241,16 @@ const FeedScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' }, // 画面全体の背景も黒に
+  container: { flex: 1, backgroundColor: '#000' },
   paperContainer: {
     width: Dimensions.get('window').width,
     justifyContent: 'center',
     paddingHorizontal: 20,
-    backgroundColor: '#000', // ← 固定で黒
+    backgroundColor: '#000',
   },
-  title: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#fff', // ← 白固定
-    marginBottom: 8,
-  },
-  authors: {
-    fontSize: 15,
-    color: 'lightgray', // ← 明るめの灰色
-    marginBottom: 12,
-  },
-  summary: {
-    fontSize: 17,
-    lineHeight: 25,
-    color: '#eee', // ← 見やすい薄い白
-  },
+  title: { fontSize: 22, fontWeight: 'bold', color: '#fff', marginBottom: 8 },
+  authors: { fontSize: 15, color: 'lightgray', marginBottom: 12 },
+  summary: { fontSize: 17, lineHeight: 25, color: '#eee' },
   overlayContainer: { ...StyleSheet.absoluteFillObject },
   rightIconsWrapper: {
     position: 'absolute',

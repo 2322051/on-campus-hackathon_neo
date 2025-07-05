@@ -47,7 +47,7 @@ const AVAILABLE_VOICES = [
   { id: 58, name: '猫使ビィ' },
 ];
 
-const API_BASE_URL = 'http://127.0.0.1:8000';
+const API_BASE_URL = 'http://192.168.40.31:8000'; // ← 例：自分のPCのIPアドレスに  // ← 実機からPCのFastAPIにアクセス可能なIP
 const CURRENT_USER_ID = 1;
 
 const SettingsScreen = () => {
