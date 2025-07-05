@@ -44,9 +44,8 @@ const saveBase64AsAudioFile = async (base64Data: string, filename: string): Prom
 };
 
 const PaperItem = ({ item, index, containerHeight }: { item: FeedItem; index: number; containerHeight: number; }) => {
-  const backgroundColor = index % 2 === 0 ? '#0d001a' : '#1a000d';
   return (
-    <View style={[styles.paperContainer, { height: containerHeight, backgroundColor }]}>
+    <View style={[styles.paperContainer, { height: containerHeight }]}>
       <View>
         <Text style={styles.title} numberOfLines={3}>{item.title}</Text>
         <Text style={styles.authors} numberOfLines={2}>{item.authors.join(', ')}</Text>
@@ -234,13 +233,36 @@ const FeedScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center' },
-  paperContainer: { width: Dimensions.get('window').width, justifyContent: 'center', paddingHorizontal: 20 },
-  title: { fontSize: 22, fontWeight: 'bold', color: '#fff', marginBottom: 8 },
-  authors: { fontSize: 15, color: 'lightgray', marginBottom: 12 },
-  summary: { fontSize: 17, lineHeight: 25, color: '#eee' },
+  container: { flex: 1, backgroundColor: '#000' }, // 画面全体の背景も黒に
+  paperContainer: {
+    width: Dimensions.get('window').width,
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    backgroundColor: '#000', // ← 固定で黒
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#fff', // ← 白固定
+    marginBottom: 8,
+  },
+  authors: {
+    fontSize: 15,
+    color: 'lightgray', // ← 明るめの灰色
+    marginBottom: 12,
+  },
+  summary: {
+    fontSize: 17,
+    lineHeight: 25,
+    color: '#eee', // ← 見やすい薄い白
+  },
   overlayContainer: { ...StyleSheet.absoluteFillObject },
-  rightIconsWrapper: { position: 'absolute', bottom: 160, right: 10, alignItems: 'center' },
+  rightIconsWrapper: {
+    position: 'absolute',
+    bottom: 160,
+    right: 10,
+    alignItems: 'center',
+  },
   iconButton: { alignItems: 'center', marginBottom: 25 },
   iconText: { color: 'white', fontSize: 12, marginTop: 4 },
 });
